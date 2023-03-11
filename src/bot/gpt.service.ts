@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { WwjsLogger } from 'src/Logger/logger.service';
 import { WhatsappBot } from 'src/WwjsClient/proxy/server';
-import { Configuration, OpenAIApi, CreateTranscriptionResponse, CreateCompletionResponse } from 'openai';
+import { Configuration, OpenAIApi, CreateTranscriptionResponse, CreateCompletionResponse, ChatCompletionRequestMessage, CreateChatCompletionResponse } from 'openai';
 import * as fs from 'fs';
 import { Message } from 'whatsapp-web.js';
 import * as ffmpeg from 'fluent-ffmpeg';
@@ -20,6 +20,21 @@ export class GPTService {
         this.OPENAI_CLIENT = new OpenAIApi(configuration);
     }
 
+    public async chatCompletion(messages: ChatCompletionRequestMessage[]): Promise<OaiResponse<CreateChatCompletionResponse>> {
+        try {
+            const resp = await this.OPENAI_CLIENT.createChatCompletion({
+                model: "gpt-3.5-turbo",
+                messages,
+                temperature: 0.2,
+                max_tokens: 75,
+            });
+
+            return { response: resp.data };
+        } catch (err) {
+            return { error: err };
+        }
+    }
+
     public async gptCompletion(text: string): Promise<OaiResponse<CreateCompletionResponse>> {
         try {
             const resp = await this.OPENAI_CLIENT.createCompletion({
@@ -36,6 +51,7 @@ export class GPTService {
     }
 
     public async sttFromMessage(message: Message): Promise<OaiResponse<CreateTranscriptionResponse>> {
+        // TODO : create better flow of these functions
         const media = await message.downloadMedia();
 
         const buffer = Buffer.from(media.data, "base64")

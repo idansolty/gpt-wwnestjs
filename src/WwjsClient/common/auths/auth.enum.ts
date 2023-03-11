@@ -3,9 +3,10 @@ import { Message } from "whatsapp-web.js";
 export enum POSSIBLE_AUTHS {
     GENERIC_WHITELIST = "CHAT_WHITE_LIST",
     GENERIC_BLACKLIST = "CHAT_BLACK_LIST",
+    NOT_FROM_ME = "NOT_FROM_ME",
     FROM_ME = "FROM_ME",
     GROUP_ADMIN = "GROUP_ADMIN",
-    NOT_GROUP = "NOT_GROUP"
+    NOT_GROUP = "NOT_GROUP",
 }
 
 export class AuthOperationType {
@@ -37,6 +38,13 @@ export class GenericControllerAuth {
                 }
 
                 return false;
+            }
+        })
+
+        this.AUTHS.push({
+            authType: POSSIBLE_AUTHS.NOT_FROM_ME,
+            operation: (data) => {
+                return !data.message.id.fromMe;
             }
         })
 
