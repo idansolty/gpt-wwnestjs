@@ -11,7 +11,9 @@ export class WhatsappBot implements IServer {
     static controllers: any[] = [];
 
     constructor() {
-        this.bot = new Client({});
+        this.bot = new Client({
+            authStrategy: new LocalAuth({ clientId: "client-test" }),
+        });
     }
 
     get getClient() {

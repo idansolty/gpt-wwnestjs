@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { WwjsLogger } from 'src/Logger/logger.service';
 import { WhatsappBot } from 'src/WwjsClient/proxy/server';
-import { Configuration, OpenAIApi, CreateTranscriptionResponse, CreateCompletionResponse, ChatCompletionRequestMessage, CreateChatCompletionResponse } from 'openai';
+import { Configuration, OpenAIApi, CreateTranscriptionResponse, ImagesResponse, CreateCompletionResponse, ChatCompletionRequestMessage, CreateChatCompletionResponse } from 'openai';
 import * as fs from 'fs';
 import { Message } from 'whatsapp-web.js';
 import * as ffmpeg from 'fluent-ffmpeg';
@@ -35,13 +35,12 @@ export class GPTService {
         }
     }
 
-    public async gptCompletion(text: string): Promise<OaiResponse<CreateCompletionResponse>> {
+    public async createImage(text: string): Promise<OaiResponse<ImagesResponse>> {
         try {
-            const resp = await this.OPENAI_CLIENT.createCompletion({
-                model: "text-davinci-003",
+            const resp = await this.OPENAI_CLIENT.createImage({
                 prompt: text,
-                temperature: 0.2,
-                max_tokens: 50
+                n: 1,
+                response_format: "url"
             });
 
             return { response: resp.data };
@@ -50,17 +49,32 @@ export class GPTService {
         }
     }
 
-    public async sttFromMessage(message: Message): Promise<OaiResponse<CreateTranscriptionResponse>> {
+    public async gptCompletion(text: string, max_tokens?: number): Promise<OaiResponse<CreateCompletionResponse>> {
+        try {
+            const resp = await this.OPENAI_CLIENT.createCompletion({
+                model: "text-davinci-003",
+                prompt: text,
+                temperature: 0.2,
+                max_tokens: max_tokens || 50
+            });
+
+            return { response: resp.data };
+        } catch (err) {
+            return { error: err };
+        }
+    }
+
+    public async sttFromMessage(message: Message, translate?: string): Promise<OaiResponse<CreateTranscriptionResponse>> {
         // TODO : create better flow of these functions
         const media = await message.downloadMedia();
 
         const buffer = Buffer.from(media.data, "base64")
 
-        return this.sttFromData(buffer);
+        return this.sttFromData(buffer, translate);
     }
 
 
-    public async sttFromData(buffer: Buffer): Promise<OaiResponse<CreateTranscriptionResponse>> {
+    public async sttFromData(buffer: Buffer, translate?: string): Promise<OaiResponse<CreateTranscriptionResponse>> {
         const uniqName = new Date().getTime();
 
         const inputFilePath = `X:/projects/WW-nest-JS/stt-bot/inputs/${uniqName}-input.ogg`;
@@ -85,16 +99,20 @@ export class GPTService {
 
         const mp3ReadStream = fs.createReadStream(outputFilePath);
 
-        const response = await this.sttFromMp3(mp3ReadStream as any)
+        const response = await this.sttFromMp3(mp3ReadStream as any, translate)
 
         return response;
     }
 
-    public async sttFromMp3(fileReadStream: File): Promise<OaiResponse<CreateTranscriptionResponse>> {
+    public async sttFromMp3(fileReadStream: File, translate?: string): Promise<OaiResponse<CreateTranscriptionResponse>> {
         try {
             const resp = await this.OPENAI_CLIENT.createTranscription(
                 fileReadStream,
-                "whisper-1"
+                "whisper-1",
+                undefined,
+                undefined,
+                undefined,
+                translate
             );
 
             return { response: resp.data };
