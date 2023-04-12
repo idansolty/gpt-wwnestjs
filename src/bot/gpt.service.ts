@@ -77,8 +77,8 @@ export class GPTService {
     public async sttFromData(buffer: Buffer, translate?: string): Promise<OaiResponse<CreateTranscriptionResponse>> {
         const uniqName = new Date().getTime();
 
-        const inputFilePath = `X:/projects/WW-nest-JS/stt-bot/inputs/${uniqName}-input.ogg`;
-        const outputFilePath = `X:/projects/WW-nest-JS/stt-bot/outputs/${uniqName}-output.mp3`;
+        const inputFilePath = `./inputs/${uniqName}-input.ogg`;
+        const outputFilePath = `./outputs/${uniqName}-output.mp3`;
 
         fs.writeFileSync(inputFilePath, buffer);
 

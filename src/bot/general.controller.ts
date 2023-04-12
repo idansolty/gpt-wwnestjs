@@ -5,12 +5,13 @@ import { BotCommand } from 'src/WwjsClient/common/decorators/command.decorator';
 import { BotListner } from 'src/WwjsClient/common/decorators/controller.decorator';
 import { BotController } from 'src/WwjsClient/common/interfaces/BotController';
 import { WhatsappBot } from 'src/WwjsClient/proxy/server';
-import { Events, Message, MessageTypes } from 'whatsapp-web.js';
+import { Events, Message, MessageMedia, MessageTypes } from 'whatsapp-web.js';
 import { WwjsLogger } from 'src/Logger/logger.service';
 import { GPTService } from './gpt.service';
 import { GPT_LIST, STT_LIST } from './common/constants';
 import { readFile, readFileSync, writeFile, writeFileSync } from 'fs';
 import { ChatCompletionRequestMessage } from "openai"
+import { TextToSpeechClient } from '@google-cloud/text-to-speech';
 
 @BotListner(Events.MESSAGE_CREATE)
 @Controller()
@@ -47,6 +48,36 @@ export class GeneralController extends BotController {
     }
 
     return functionChoosen;
+  }
+
+  @BotAuth(POSSIBLE_AUTHS.FROM_ME)
+  @BotCommand("!debug")
+  async debug(message: Message) {
+    const toSpeachText = message.body.split("!debug")[1];
+
+    const client = new TextToSpeechClient({
+      keyFilename: './keys/chatwith-project-01ff83d706b0.json',
+    })
+
+    const request = {
+      input: { text: toSpeachText },
+      voice: { languageCode: 'en-US', name: 'en-US-Wavenet-D' },
+      audioConfig: { audioEncoding: "MP3" as any },
+    };
+
+    const [response] = await client.synthesizeSpeech(request);
+
+    this.Logger.logInfo(`tts calculated for -> "${message.from}"\ncompleted for text with length of -> ${toSpeachText.length}`);
+
+    const data = response.audioContent;
+
+    writeFileSync("./tts/output.mp3", data, 'binary');
+
+    const messageMedia = await MessageMedia.fromFilePath("./tts/output.mp3")
+
+    message.reply(messageMedia);
+
+    return;
   }
 
   @BotAuth(STT_LIST)
@@ -114,8 +145,6 @@ export class GeneralController extends BotController {
   @BotAuth(POSSIBLE_AUTHS.FROM_ME)
   @BotCommand("!setSttLoggerHere")
   async setLogger(message: Message) {
-    writeFileSync(`X:/projects/WW-nest-JS/stt-bot/chats/oogabooga.json`, JSON.stringify({ "ooga": "booga" }))
-
     const loggerChat = await message.getChat();
 
     this.Logger.setChat(loggerChat);
@@ -168,7 +197,7 @@ export class GeneralController extends BotController {
 
     const tokenQuotaNumber = Number(tokenQuotaNumberString);
 
-    if (tokenQuotaNumber !== NaN) {
+    if (!Number.isNaN(tokenQuotaNumber)) {
       this.selfTokensQuota = tokenQuotaNumber;
       message.reply(`changed quota succesfully to -> ${this.selfTokensQuota}`)
     } else {

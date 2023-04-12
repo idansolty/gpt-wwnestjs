@@ -4,6 +4,8 @@
 /inputs
 /outputs
 /chats
+/tts
+/keys
 .wwebjs_auth
 # secret configurations
 .env

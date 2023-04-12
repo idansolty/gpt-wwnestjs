@@ -5,20 +5,24 @@ import { BotCommand } from 'src/WwjsClient/common/decorators/command.decorator';
 import { BotListner } from 'src/WwjsClient/common/decorators/controller.decorator';
 import { BotController } from 'src/WwjsClient/common/interfaces/BotController';
 import { WhatsappBot } from 'src/WwjsClient/proxy/server';
-import { Events, Message, MessageTypes } from 'whatsapp-web.js';
+import { Events, Message, MessageMedia, MessageTypes } from 'whatsapp-web.js';
 import { WwjsLogger } from 'src/Logger/logger.service';
 import { GPTService } from './gpt.service';
 import { CHAT_LIST, GPT_LIST, STT_LIST } from './common/constants';
 import { readFile, readFileSync, writeFile, writeFileSync } from 'fs';
 import { ChatCompletionRequestMessage } from "openai"
+import { DiscussionService } from './discussion.service';
+import { AIService } from './ai.service';
 
 @BotListner(Events.MESSAGE_CREATE)
 @Controller()
-export class GeneralController extends BotController {
+export class ChatsController extends BotController {
   constructor(
     whatsappBot: WhatsappBot,
     private Logger: WwjsLogger,
-    private GPTService: GPTService
+    private GPTService: GPTService,
+    private DiscussionService: DiscussionService,
+    private AIService: AIService
   ) {
     super(whatsappBot)
 
@@ -59,46 +63,9 @@ export class GeneralController extends BotController {
     const chat = await message.getChat();
     const chatId = chat.id._serialized;
 
-    // TODO : later move to mongo
-    // TODO : create type of this
-    let chatFile: { messages: ChatCompletionRequestMessage[] };
-    try {
-      chatFile = JSON.parse(readFileSync(`X:/projects/WW-nest-JS/stt-bot/chats/${chatId}.json`, "utf-8"));
-    } catch (err) {
-      this.Logger.logError("error while reading file");
-    }
+    const Answer = await this.DiscussionService.simpleChat(chatId, message.body);
 
-    if (!chatFile?.messages?.length) {
-      chatFile = {
-        messages: [
-          { "role": "system", "content": "You are a helpful assistant. The assistant is helpful, creative, clever, and very friendly." },
-          { "role": "assistant", "content": "Hello i will be ur assistant today! How can I help you?" }
-        ]
-      }
-    }
-
-    const chatMessages = chatFile.messages;
-
-    const systemMessage = chatMessages.slice(0, 1);
-    const lastMessages = chatMessages.slice(1).slice(-4);
-    const newMessage: ChatCompletionRequestMessage = { role: "user", content: message.body }
-
-    const parsedMessagesToChat = [...systemMessage, ...lastMessages, newMessage];
-
-    const gptResponse = await this.GPTService.chatCompletion(parsedMessagesToChat);
-
-    chatMessages.push(newMessage)
-    chatMessages.push({ role: "assistant", content: gptResponse.response.choices[0].message.content })
-
-    writeFileSync(`X:/projects/WW-nest-JS/stt-bot/chats/${chatId}.json`, JSON.stringify({ ...chatFile, messages: chatMessages }))
-
-    if (gptResponse.error) {
-      message.reply(`something went wrong :()`);
-      this.Logger.logError(`something went wrong :(${JSON.stringify(gptResponse.error?.response?.data)})`);
-    } else {
-      message.reply(gptResponse.response.choices[0].message.content)
-      this.Logger.logInfo(JSON.stringify(gptResponse.response.usage));
-    }
+    message.reply(Answer);
 
     return;
   }
@@ -113,53 +80,27 @@ export class GeneralController extends BotController {
     const sttResponse = await this.GPTService.sttFromMessage(message, "en");
 
     if (sttResponse.error) {
-      message.reply(`something went wrong :()`);
-      this.Logger.logError(`something went wrong :(${JSON.stringify(sttResponse.error?.response?.data)})`);
+      message.reply(`something went wrong in stt :()`);
+      this.Logger.logError(`something went wrong in stt:(${JSON.stringify(sttResponse.error?.response?.data)})`);
       return;
+    } else {
+      this.Logger.logInfo(`stt calculated for discussion -> "${chat.name}" \nfor a message with duration of -> ${message.duration}s`);
     }
 
     const userMessage = sttResponse.response.text;
 
-    // TODO : later move to mongo
-    // TODO : create type of this
-    let chatFile: { messages: ChatCompletionRequestMessage[] };
-    try {
-      chatFile = JSON.parse(readFileSync(`X:/projects/WW-nest-JS/stt-bot/chats/${chatId}.json`, "utf-8"));
-    } catch (err) {
-      this.Logger.logError("error while reading file");
-    }
+    const assistantResponse = await this.DiscussionService.simpleChat(chatId, userMessage);
 
-    if (!chatFile?.messages?.length) {
-      chatFile = {
-        messages: [
-          { "role": "system", "content": "You are a helpful assistant. The assistant is helpful, creative, clever, and very friendly." },
-          { "role": "assistant", "content": "Hello i will be ur assistant today! How can I help you?" }
-        ]
-      }
-    }
+    const uniqName = new Date().getTime();
+    const inputFilePath = `./tts/${uniqName}-input.mp3`;
 
-    const chatMessages = chatFile.messages;
+    await this.AIService.textToSpeech(assistantResponse, inputFilePath);
 
-    const systemMessage = chatMessages.slice(0, 1);
-    const lastMessages = chatMessages.slice(1).slice(-4);
-    const newMessage: ChatCompletionRequestMessage = { role: "user", content: userMessage }
+    this.Logger.logInfo(`tts calculated in the chat -> "${chat.name}"\ncompleted for text with length of -> ${assistantResponse.length}`);
 
-    const parsedMessagesToChat = [...systemMessage, ...lastMessages, newMessage];
+    const messageMedia = await MessageMedia.fromFilePath(inputFilePath)
 
-    const gptResponse = await this.GPTService.chatCompletion(parsedMessagesToChat);
-
-    chatMessages.push(newMessage)
-    chatMessages.push({ role: "assistant", content: gptResponse.response.choices[0].message.content })
-
-    writeFileSync(`X:/projects/WW-nest-JS/stt-bot/chats/${chatId}.json`, JSON.stringify({ ...chatFile, messages: chatMessages }))
-
-    if (gptResponse.error) {
-      message.reply(`something went wrong :()`);
-      this.Logger.logError(`something went wrong :(${JSON.stringify(gptResponse.error?.response?.data)})`);
-    } else {
-      message.reply(gptResponse.response.choices[0].message.content)
-      this.Logger.logInfo(JSON.stringify(gptResponse.response.usage));
-    }
+    message.reply(messageMedia);
 
     return;
   }
@@ -170,6 +111,16 @@ export class GeneralController extends BotController {
     this.addToList(CHAT_LIST, message.to);
 
     message.reply("Hello :) i will be ur assistant today! How can I help you?");
+  }
+
+  @BotAuth(POSSIBLE_AUTHS.FROM_ME)
+  @BotCommand("!addPPTChatBot")
+  async addPPTChatBot(message: Message) {
+    this.addToList(CHAT_LIST, message.to);
+
+    const messageMedia = await MessageMedia.fromFilePath("./src/bot/common/convStarter.mp3")
+
+    message.reply(messageMedia);
   }
 
   @BotAuth(POSSIBLE_AUTHS.FROM_ME)
