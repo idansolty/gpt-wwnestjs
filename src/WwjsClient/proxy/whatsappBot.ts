@@ -27,8 +27,8 @@ export class WhatsappBot implements IServer {
         return this.stringifiedCommands;
     }
 
-    public start(app): void {
-        this.setStringifiedCommands(app);
+    public start(app, shouldCallGpt = false): void {
+        this.setStringifiedCommands(shouldCallGpt);
 
         this.bot.initialize();
 
@@ -49,11 +49,11 @@ export class WhatsappBot implements IServer {
 
     }
 
-    private async setStringifiedCommands(app) {
+    private async setStringifiedCommands(shouldCallGpt) {
         const allCommandsStrings = []
 
         for (const controller of WhatsappBot.controllers) {
-            const classCommands: string[] = await this.stringifyCommands(controller);
+            const classCommands: string[] = await this.stringifyCommands(controller, shouldCallGpt);
 
             classCommands.unshift(`\n${controller.target.name} | on ${controller.prefix} | \n${controller.description}:\n\n`)
 
@@ -77,11 +77,11 @@ export class WhatsappBot implements IServer {
         console.log("finished calculating strings");
     }
 
-    private async stringifyCommands(controller): Promise<string[]> {
+    private async stringifyCommands(controller, shouldCallGpt): Promise<string[]> {
         const functions = Reflect.getMetadata('commands', controller.target)
         const functionsAuths = Reflect.getMetadata('auths', controller.target)
-
-        const compelation = await this.wwbotGPTService.explainEachFunctionInCode(controller.target.toString());
+        
+        const compelation = shouldCallGpt ? await this.wwbotGPTService.explainEachFunctionInCode(controller.target.toString()) : {};
 
         // Read from file anout the current controller
         // later move to mongodb
