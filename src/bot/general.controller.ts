@@ -1,19 +1,20 @@
-import { Controller } from '@nestjs/common';
+import { Controller, Inject } from '@nestjs/common';
 import { POSSIBLE_AUTHS, whiteListOperation } from 'src/WwjsClient/common/auths/auth.enum';
 import { BotAuth } from 'src/WwjsClient/common/decorators/auth.decorator';
 import { BotCommand } from 'src/WwjsClient/common/decorators/command.decorator';
 import { BotListner } from 'src/WwjsClient/common/decorators/controller.decorator';
 import { BotController } from 'src/WwjsClient/common/interfaces/BotController';
-import { WhatsappBot } from 'src/WwjsClient/proxy/server';
+import { WhatsappBot } from 'src/WwjsClient/proxy/whatsappBot';
 import { Events, Message, MessageMedia, MessageTypes } from 'whatsapp-web.js';
 import { WwjsLogger } from 'src/Logger/logger.service';
-import { GPTService } from './gpt.service';
+import { GPTService } from './services/gpt.service';
 import { GPT_LIST, STT_LIST } from './common/constants';
 import { readFile, readFileSync, writeFile, writeFileSync } from 'fs';
 import { ChatCompletionRequestMessage } from "openai"
 import { TextToSpeechClient } from '@google-cloud/text-to-speech';
+import { AIService } from './services/ai.service';
 
-@BotListner(Events.MESSAGE_CREATE)
+@BotListner(Events.MESSAGE_CREATE, "for general porpuses")
 @Controller()
 export class GeneralController extends BotController {
   private selfTokensQuota = 1000;
@@ -21,19 +22,13 @@ export class GeneralController extends BotController {
   constructor(
     whatsappBot: WhatsappBot,
     private Logger: WwjsLogger,
-    private GPTService: GPTService
+    private GPTService: GPTService,
+    private AIService: AIService
   ) {
     super(whatsappBot)
 
-    this._setList(STT_LIST, []);
-    this._addAuthObjects(STT_LIST,
-      (data) => whiteListOperation(data, STT_LIST)
-    )
-
-    this._setList(GPT_LIST, []);
-    this._addAuthObjects(GPT_LIST,
-      (data) => whiteListOperation(data, GPT_LIST)
-    )
+    this._setList(STT_LIST, [], whiteListOperation);
+    this._setList(GPT_LIST, [], whiteListOperation);
   }
 
   protected _chooseFunction(functions, ...args) {
@@ -51,29 +46,40 @@ export class GeneralController extends BotController {
   }
 
   @BotAuth(POSSIBLE_AUTHS.FROM_ME)
-  @BotCommand("!debug")
+  @BotCommand("!summarize")
   async debug(message: Message) {
-    const toSpeachText = message.body.split("!debug")[1];
+    const numberFromMessage = +message.body.split("!summarize")[1].trim();
+    const numberOfMessages = isNaN(numberFromMessage) ? 25 : numberFromMessage;
 
-    const client = new TextToSpeechClient({
-      keyFilename: './keys/chatwith-project-01ff83d706b0.json',
-    })
+    const chat = await message.getChat();
 
-    const request = {
-      input: { text: toSpeachText },
-      voice: { languageCode: 'en-US', name: 'en-US-Wavenet-D' },
-      audioConfig: { audioEncoding: "MP3" as any },
-    };
+    const chatMessages = (await chat.fetchMessages({ limit: numberOfMessages })).filter((message) => !message.body.startsWith("!summarize"));
 
-    const [response] = await client.synthesizeSpeech(request);
+    const formattedMessages = await Promise.all(chatMessages.map(async (message) => `[${(await message.getContact()).pushname}]: ${message.body}`));
 
-    this.Logger.logInfo(`tts calculated for -> "${message.from}"\ncompleted for text with length of -> ${toSpeachText.length}`);
+    const gptPrompt = `given the conversation below, summerize it in 2 bullet points. if it contains data about time that was choosen, include it as well - \n ${formattedMessages}`;
 
-    const data = response.audioContent;
+    const gptResponse = await this.GPTService.gptCompletion(gptPrompt, 200);
+    this.Logger.logInfo(JSON.stringify(gptResponse.response.usage));
 
-    writeFileSync("./tts/output.mp3", data, 'binary');
+    await message.reply(gptResponse.response.choices[0].text);
 
-    const messageMedia = await MessageMedia.fromFilePath("./tts/output.mp3")
+    return;
+  }
+
+  @BotAuth(POSSIBLE_AUTHS.FROM_ME)
+  @BotCommand("!tts")
+  async tts(message: Message) {
+    const toSpeachText = message.body.split("!tts")[1];
+
+    const uniqName = new Date().getTime();
+    const inputFilePath = `./tts/${uniqName}-ginput.mp3`;
+
+    await this.AIService.textToSpeech(toSpeachText, inputFilePath);
+
+    this.Logger.logInfo(`tts calculated in the chat -> "${message.to}"\ncompleted for text with length of -> ${toSpeachText.length}`);
+
+    const messageMedia = await MessageMedia.fromFilePath(inputFilePath)
 
     message.reply(messageMedia);
 

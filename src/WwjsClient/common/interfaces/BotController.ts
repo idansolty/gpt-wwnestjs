@@ -1,6 +1,8 @@
-import { WhatsappBot } from "src/WwjsClient/proxy/server";
+import { WhatsappBot } from "src/WwjsClient/proxy/whatsappBot";
 import { Chat, GroupChat, GroupNotification, Message, Reaction } from "whatsapp-web.js";
 import { AuthOperationType, dataForAuth, GenericControllerAuth, POSSIBLE_AUTHS } from "../auths/auth.enum";
+import * as _ from "lodash";
+import { readFileSync } from "fs";
 
 export class BotController {
     public listsDict: Record<string, string[]>;
@@ -10,6 +12,7 @@ export class BotController {
     constructor(
         protected readonly _whatsappBot: WhatsappBot
     ) {
+        console.log(_whatsappBot.rand)
         this.authsFunctions = new GenericControllerAuth();
         this.argsForAuth = {};
         this.listsDict = {
@@ -89,7 +92,7 @@ export class BotController {
                 return false;
             }
 
-            this.listsDict[name].splice(indexToRemove, 1); 
+            this.listsDict[name].splice(indexToRemove, 1);
 
             return true;
         }
@@ -107,7 +110,36 @@ export class BotController {
         this.authsFunctions.addAuth(newAuthObject)
     }
 
-    protected _setList(name: string, value) {
+    protected _setList(name: string, value, operation?) {
         this.listsDict[name] = value;
+        if (operation) {
+            this._addAuthObjects(name,
+                (data) => operation(data, name)
+            )
+        }
+    }
+
+    public stringifyCommands(controller): string {
+        const functions = Reflect.getMetadata('commands', controller.target)
+        const functionsAuths = Reflect.getMetadata('auths', controller.target)
+
+        // TODO: think of how to call gpt from this early stage :)
+
+        // Read from file anout the current controller
+        // later move to mongodb
+        let preCalculatedDescriptions;
+        try {
+            preCalculatedDescriptions = JSON.parse(readFileSync(`./controllersDescription/${controller.target.name}-data.json`, "utf-8"))
+        } catch {
+            preCalculatedDescriptions = {};
+        }
+
+        return functions.map((f) => {
+            const relevantAuths = functionsAuths.filter(fa => fa.methodName === f.methodName);
+
+            const authsString = relevantAuths.map(auth => `${auth.authType}${auth.moreInfo === "" ? "" : `: ${auth.moreInfo}`}`).join("\n");
+
+            return (`[${f.command}] : ${f.description === "" && preCalculatedDescriptions[f.methodName] !== undefined ? preCalculatedDescriptions[f.methodName] : ""} \n${authsString}\n`)
+        })
     }
 }

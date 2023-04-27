@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { WhatsappBot } from 'src/WwjsClient/proxy/server';
+import { WhatsappBot } from 'src/WwjsClient/proxy/whatsappBot';
 import { Chat } from 'whatsapp-web.js';
 
 @Injectable()

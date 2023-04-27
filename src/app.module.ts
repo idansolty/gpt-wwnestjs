@@ -1,10 +1,14 @@
 import { Module } from '@nestjs/common';
 import { BotModule } from './bot/bot.module';
-import { WhatsappBot } from './WwjsClient/proxy/server';
+import { WhatsappBot } from './WwjsClient/proxy/whatsappBot';
+import { appController } from './app.controller';
+import { DefaultModule } from './WwjsClient/common/defaults/default.module';
+import { DefaultController } from './WwjsClient/common/defaults/default.controller';
+import { WhatsappModule } from './WwjsClient/proxy/whatsapp.module';
 
 @Module({
-  imports: [BotModule],
+  imports: [WhatsappModule, BotModule, DefaultModule],
   controllers: [],
-  providers: [WhatsappBot],
+  providers: [],
 })
-export class AppModule {}
+export class AppModule { }

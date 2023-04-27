@@ -4,15 +4,13 @@ import { BotAuth } from 'src/WwjsClient/common/decorators/auth.decorator';
 import { BotCommand } from 'src/WwjsClient/common/decorators/command.decorator';
 import { BotListner } from 'src/WwjsClient/common/decorators/controller.decorator';
 import { BotController } from 'src/WwjsClient/common/interfaces/BotController';
-import { WhatsappBot } from 'src/WwjsClient/proxy/server';
+import { WhatsappBot } from 'src/WwjsClient/proxy/whatsappBot';
 import { Events, Message, MessageMedia, MessageTypes } from 'whatsapp-web.js';
 import { WwjsLogger } from 'src/Logger/logger.service';
-import { GPTService } from './gpt.service';
-import { CHAT_LIST, GPT_LIST, IMAGES_LIST, STT_LIST } from './common/constants';
-import { readFile, readFileSync, writeFile, writeFileSync } from 'fs';
-import { ChatCompletionRequestMessage } from "openai"
+import { GPTService } from './services/gpt.service';
+import { IMAGES_LIST } from './common/constants';
 
-@BotListner(Events.MESSAGE_CREATE)
+@BotListner(Events.MESSAGE_CREATE, "DALLE 2 creations and stickers")
 @Controller()
 export class ImagesController extends BotController {
   constructor(
@@ -22,15 +20,7 @@ export class ImagesController extends BotController {
   ) {
     super(whatsappBot)
 
-    this._setList(GPT_LIST, []);
-    this._addAuthObjects(GPT_LIST,
-      (data) => whiteListOperation(data, GPT_LIST)
-    )
-
-    this._setList(IMAGES_LIST, []);
-    this._addAuthObjects(IMAGES_LIST,
-      (data) => whiteListOperation(data, IMAGES_LIST)
-    )
+    this._setList(IMAGES_LIST, [], whiteListOperation);
   }
 
   protected _chooseFunction(functions, ...args) {
@@ -87,18 +77,6 @@ export class ImagesController extends BotController {
     message.reply(media, undefined, { sendMediaAsSticker: true });
 
     return;
-  }
-
-  @BotAuth(POSSIBLE_AUTHS.FROM_ME)
-  @BotCommand("!addChatToGPT")
-  gptAdder(message: Message) {
-    this.addToList(GPT_LIST, message.to);
-  }
-
-  @BotAuth(POSSIBLE_AUTHS.FROM_ME)
-  @BotCommand("!removeChatFromGPT")
-  gptRemover(message: Message) {
-    this.removeFromList(GPT_LIST, message.to);
   }
 
   @BotAuth(POSSIBLE_AUTHS.FROM_ME)

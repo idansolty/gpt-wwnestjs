@@ -4,17 +4,17 @@ import { BotAuth } from 'src/WwjsClient/common/decorators/auth.decorator';
 import { BotCommand } from 'src/WwjsClient/common/decorators/command.decorator';
 import { BotListner } from 'src/WwjsClient/common/decorators/controller.decorator';
 import { BotController } from 'src/WwjsClient/common/interfaces/BotController';
-import { WhatsappBot } from 'src/WwjsClient/proxy/server';
+import { WhatsappBot } from 'src/WwjsClient/proxy/whatsappBot';
 import { Events, Message, MessageMedia, MessageTypes } from 'whatsapp-web.js';
 import { WwjsLogger } from 'src/Logger/logger.service';
-import { GPTService } from './gpt.service';
-import { CHAT_LIST, GPT_LIST, STT_LIST } from './common/constants';
+import { GPTService } from './services/gpt.service';
+import { CHAT_LIST } from './common/constants';
 import { readFile, readFileSync, writeFile, writeFileSync } from 'fs';
 import { ChatCompletionRequestMessage } from "openai"
-import { DiscussionService } from './discussion.service';
-import { AIService } from './ai.service';
+import { DiscussionService } from './services/discussion.service';
+import { AIService } from './services/ai.service';
 
-@BotListner(Events.MESSAGE_CREATE)
+@BotListner(Events.MESSAGE_CREATE, "chat bot controller")
 @Controller()
 export class ChatsController extends BotController {
   constructor(
@@ -26,20 +26,7 @@ export class ChatsController extends BotController {
   ) {
     super(whatsappBot)
 
-    this._setList(STT_LIST, []);
-    this._addAuthObjects(STT_LIST,
-      (data) => whiteListOperation(data, STT_LIST)
-    )
-
-    this._setList(GPT_LIST, []);
-    this._addAuthObjects(GPT_LIST,
-      (data) => whiteListOperation(data, GPT_LIST)
-    )
-
-    this._setList(CHAT_LIST, []);
-    this._addAuthObjects(CHAT_LIST,
-      (data) => whiteListOperation(data, CHAT_LIST)
-    )
+    this._setList(CHAT_LIST, [], whiteListOperation);
   }
 
   protected _chooseFunction(functions, ...args) {

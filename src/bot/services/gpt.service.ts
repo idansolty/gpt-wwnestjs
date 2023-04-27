@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { WwjsLogger } from 'src/Logger/logger.service';
-import { WhatsappBot } from 'src/WwjsClient/proxy/server';
+import { WhatsappBot } from 'src/WwjsClient/proxy/whatsappBot';
 import { Configuration, OpenAIApi, CreateTranscriptionResponse, ImagesResponse, CreateCompletionResponse, ChatCompletionRequestMessage, CreateChatCompletionResponse } from 'openai';
 import * as fs from 'fs';
 import { Message } from 'whatsapp-web.js';
 import * as ffmpeg from 'fluent-ffmpeg';
 import * as ffmpegStatic from 'ffmpeg-static';
-import { OaiResponse } from './common/response.type';
+import { OaiResponse } from '../common/response.type';
 
 @Injectable()
 export class GPTService {

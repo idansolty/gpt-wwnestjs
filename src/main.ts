@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { BotController } from './WwjsClient/common/interfaces/BotController';
-import { WhatsappBot } from './WwjsClient/proxy/server';
+import { WhatsappBot } from './WwjsClient/proxy/whatsappBot';
 import * as dotenv from 'dotenv'
 
 async function bootstrap() {
@@ -10,8 +10,6 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   const bot = app.get(WhatsappBot);
-
-  // const controllers = app.get(BotController);
 
   bot.start(app)
 

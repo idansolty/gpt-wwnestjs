@@ -1,0 +1,9 @@
+{
+    "constructor": "creates a new object of the ChatsController class, which takes in several parameters and assigns them to the object properties.",
+    "_chooseFunction": "finds the function to execute based on the command or message type in the received message.",
+    "chatWithGpt": "conducts a simple chat with a GPT model and sends the response to the user.",
+    "speakWithGpt": "conducts a simple chat with a GPT model, converts the response to speech, and sends it back to the user.",
+    "addChatBot": "adds the chat to a list of chats that the bot is listening to and sends a greeting message.",
+    "addPPTChatBot": "adds the chat to a list of chats that the bot is listening to and sends an audio message.",
+    "removeChatBot": "removes the chat from the list of chats that the bot is listening to."
+}
