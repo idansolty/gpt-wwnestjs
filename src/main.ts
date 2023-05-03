@@ -4,6 +4,8 @@ import { BotController } from './WwjsClient/common/interfaces/BotController';
 import { WhatsappBot } from './WwjsClient/proxy/whatsappBot';
 import * as dotenv from 'dotenv'
 
+import * as Excel from "exceljs"
+
 async function bootstrap() {
   dotenv.config();
 

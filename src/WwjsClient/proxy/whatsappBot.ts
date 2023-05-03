@@ -28,7 +28,7 @@ export class WhatsappBot implements IServer {
     }
 
     public start(app, shouldCallGpt = false): void {
-        this.setStringifiedCommands(shouldCallGpt);
+        // this.setStringifiedCommands(shouldCallGpt);
 
         this.bot.initialize();
 

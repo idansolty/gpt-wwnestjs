@@ -1,21 +1,15 @@
 import { Module } from '@nestjs/common';
 import { LoggerModule } from 'src/Logger/logger.module';
 import { WhatsappBot } from 'src/WwjsClient/proxy/whatsappBot';
-import { AIService } from './services/ai.service';
-import { ChatsController } from './chat.controller';
-import { DiscussionService } from './services/discussion.service';
-import { GeneralController } from './general.controller';
-import { GPTService } from './services/gpt.service';
-import { ImagesController } from './images.controller';
 import { WhatsappModule } from 'src/WwjsClient/proxy/whatsapp.module';
+import { GPTService } from './services/gpt.service';
+import { KorroController } from './general.controller';
 
 @Module({
     imports: [WhatsappModule, LoggerModule.register({ name: "Bot Module" })],
-    controllers: [GeneralController, ImagesController, ChatsController],
+    controllers: [KorroController],
     providers: [
-        GPTService,
-        DiscussionService,
-        AIService
+        GPTService
     ],
 })
 export class BotModule { }
