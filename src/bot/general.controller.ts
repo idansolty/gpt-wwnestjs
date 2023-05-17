@@ -19,6 +19,7 @@ const BOT_LIST = "BOT_LIST"
 @Controller()
 export class KorroController extends BotController {
   private selfTokensQuota = 1000;
+  private currentSheet: string;
 
   constructor(
     whatsappBot: WhatsappBot,
@@ -26,7 +27,7 @@ export class KorroController extends BotController {
     private GPTService: GPTService
   ) {
     super(whatsappBot)
-
+    this.currentSheet = "Sheet1";
     this._setList(BOT_LIST, [], whiteListOperation);
   }
 
@@ -72,9 +73,15 @@ export class KorroController extends BotController {
       const workbook = new Excel.Workbook();
 
       await workbook.xlsx.readFile('./xlsxs/OTs data collection.xlsx');
-      let worksheet = workbook.getWorksheet("Sheet1");
+      let worksheet = workbook.getWorksheet(this.currentSheet);
 
-      worksheet.addRows(JSON.parse(data).map(a => Object.values(a))).forEach((a) => a.commit())
+      if (!worksheet) {
+        worksheet = workbook.addWorksheet(this.currentSheet);
+      }
+
+      const parsedRows = [...JSON.parse(data).map(a => Object.values(a)), [" "]]
+
+      worksheet.addRows(parsedRows).forEach((a) => a.commit())
 
       await workbook.xlsx.writeFile('./xlsxs/OTs data collection.xlsx');
 
@@ -93,8 +100,18 @@ export class KorroController extends BotController {
   }
 
   @BotAuth(POSSIBLE_AUTHS.FROM_ME)
-  @BotCommand("!addBot")
+  @BotCommand("!addBotDev")
   allAdder(message: Message) {
     this.addToList(BOT_LIST, message.to);
   }
+
+  @BotCommand("!changeSheet")
+  changeSheet(message: Message) {
+    const wantedSheet = message.body.split("!changeSheet")[1].trim()
+
+    this.currentSheet = wantedSheet;
+
+    message.reply(`changed current sheet to -> ${wantedSheet}`)
+  }
+
 }
